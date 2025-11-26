@@ -1,0 +1,21 @@
+services:
+  - type: static_site
+    name: libreshield
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    buildFilter:
+      paths:
+        include:
+          - "/**"
+    headers:
+      - path: "/*"
+        value:
+          - key: "Cache-Control"
+            value: "no-cache, no-store, must-revalidate"
+      - path: "/assets/*"
+        value:
+          - key: "Cache-Control"
+            value: "public, max-age=31536000, immutable"
+    routes:
+      - path: "/*"
+        destination: "/index.html"
