@@ -8,10 +8,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node ./scripts/safe-build.mjs",
+    "build,": "npm run build",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "start:prod": "node server.js",
+    "start": "npm run start:prod",
     "lint": "eslint src --ext .ts,.tsx --report-unused-disable-directives",
     "format": "prettier --write 'src/**/*.{ts,tsx,json,css,md}'"
   },
@@ -27,12 +29,12 @@
     "terser": "^5.44.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
+    "@eslint/js": "^8.57.0",
     "@types/node": "^22.14.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "@vitejs/plugin-react": "^5.0.0",
-    "eslint": "^9.0.0",
+    "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.0",
     "prettier": "^3.1.0",
     "typescript": "~5.8.2",
