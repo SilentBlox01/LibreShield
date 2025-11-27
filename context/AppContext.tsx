@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserProfile, ThemeColor, Language, Translation } from '../types';
 import { translations, LANGUAGES } from '../data/locales';
+import { logger } from '../lib/logger';
 
 interface AppContextType {
   userProfile: UserProfile;
@@ -63,67 +64,139 @@ const COLOR_PALETTES: Record<ThemeColor, Record<number, string>> = {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const isBrowser = typeof window !== 'undefined' && typeof localStorage !== 'undefined';
+
+const safeRead = <T,>(key: string, parser: (value: string) => T, fallback: T): T => {
+  if (!isBrowser) return fallback;
+  try {
+    const value = localStorage.getItem(key);
+    if (value === null) return fallback;
+    return parser(value);
+  } catch (error) {
+    logger.warn('Failed to read from localStorage', {
+      key,
+      error: error instanceof Error ? error.message : 'unknown',
+    });
+    return fallback;
+  }
+};
+
+const safeWrite = (key: string, value: string) => {
+  if (!isBrowser) return;
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    logger.warn('Failed to persist to localStorage', {
+      key,
+      error: error instanceof Error ? error.message : 'unknown',
+    });
+  }
+};
+
+const safeRemove = (key: string) => {
+  if (!isBrowser) return;
+  try {
+    localStorage.removeItem(key);
+  } catch (error) {
+    logger.warn('Failed to clear localStorage key', {
+      key,
+      error: error instanceof Error ? error.message : 'unknown',
+    });
+  }
+};
+
+const VALID_THEME_COLORS: ThemeColor[] = ['teal', 'blue', 'violet', 'rose', 'amber'];
+const VALID_LANGUAGES: Language[] = ['es', 'en'];
+
+const getInitialProfile = (): UserProfile => {
+  return safeRead<UserProfile>('userProfile', (value) => {
+    const parsed = JSON.parse(value) as Partial<UserProfile>;
+    return { ...initialProfile, ...parsed };
+  }, initialProfile);
+};
+
+const getInitialTheme = (): 'light' | 'dark' => {
+  if (!isBrowser) return 'light';
+
+  const stored = safeRead<'light' | 'dark' | null>(
+    'theme',
+    (value) => (value === 'dark' || value === 'light' ? value : null),
+    null
+  );
+
+  if (stored) return stored;
+
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+};
+
+const getInitialThemeColor = (): ThemeColor => {
+  return safeRead<ThemeColor>('themeColor', (value) => {
+    return VALID_THEME_COLORS.includes(value as ThemeColor) ? (value as ThemeColor) : 'teal';
+  }, 'teal');
+};
+
+const getInitialLanguage = (): Language => {
+  return safeRead<Language>('language', (value) => {
+    return VALID_LANGUAGES.includes(value as Language) ? (value as Language) : 'es';
+  }, 'es');
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
-    // Load profile from local storage if available
-    const saved = localStorage.getItem('userProfile');
-    return saved ? JSON.parse(saved) : initialProfile;
-  });
+  const [userProfile, setUserProfile] = useState<UserProfile>(getInitialProfile);
   
   // Save profile to local storage on change
   useEffect(() => {
-    localStorage.setItem('userProfile', JSON.stringify(userProfile));
+    if (!isBrowser) return;
+    safeWrite('userProfile', JSON.stringify(userProfile));
   }, [userProfile]);
 
   // Theme (Light/Dark)
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark' || savedTheme === 'light') return savedTheme;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
+  const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
 
   // Theme Color (Brand Color)
-  const [themeColor, setThemeColor] = useState<ThemeColor>(() => {
-    return (localStorage.getItem('themeColor') as ThemeColor) || 'teal';
-  });
+  const [themeColor, setThemeColor] = useState<ThemeColor>(getInitialThemeColor);
 
   // Language
-  const [language, setLanguage] = useState<Language>(() => {
-    return (localStorage.getItem('language') as Language) || 'es';
-  });
+  const [language, setLanguage] = useState<Language>(getInitialLanguage);
 
   const t = translations[language];
   const dir = LANGUAGES.find(l => l.code === language)?.dir || 'ltr';
 
   // Apply Dark Mode
   useEffect(() => {
+    if (typeof document === 'undefined') return;
+
     const root = window.document.documentElement;
     if (theme === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-    localStorage.setItem('theme', theme);
+    safeWrite('theme', theme);
   }, [theme]);
 
   // Apply Theme Color CSS Variables
   useEffect(() => {
+    if (typeof document === 'undefined') return;
+
     const root = window.document.documentElement;
     const palette = COLOR_PALETTES[themeColor];
-    
+
     Object.entries(palette).forEach(([shade, value]) => {
       root.style.setProperty(`--color-primary-${shade}`, value as string);
     });
-    
-    localStorage.setItem('themeColor', themeColor);
+
+    safeWrite('themeColor', themeColor);
   }, [themeColor]);
 
   // Apply Language Direction
   useEffect(() => {
+    if (typeof document === 'undefined') return;
+
     const root = window.document.documentElement;
     root.setAttribute('lang', language);
     root.setAttribute('dir', dir);
-    localStorage.setItem('language', language);
+    safeWrite('language', language);
   }, [language, dir]);
 
   const toggleTheme = () => {
@@ -136,7 +209,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const resetProfile = () => {
     setUserProfile(initialProfile);
-    localStorage.removeItem('userProfile');
+    safeRemove('userProfile');
   };
 
   return (
