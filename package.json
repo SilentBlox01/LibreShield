@@ -9,9 +9,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build,": "npm run build",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "start:prod": "node server.js",
+    "start": "npm run start:prod",
     "lint": "eslint src --ext .ts,.tsx --report-unused-disable-directives",
     "format": "prettier --write 'src/**/*.{ts,tsx,json,css,md}'"
   },
