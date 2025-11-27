@@ -11,6 +11,9 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Respect upstream proxy headers for accurate rate limiting and logging
+app.set('trust proxy', 1);
+
 // Logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
@@ -39,8 +42,10 @@ app.use(helmet({
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
   noSniff: true,
-  xssFilter: true,
-  frameguard: { action: 'deny' }
+  frameguard: { action: 'deny' },
+  crossOriginOpenerPolicy: { policy: 'same-origin' },
+  crossOriginResourcePolicy: { policy: 'same-origin' },
+  crossOriginEmbedderPolicy: false
 }));
 
 // CORS Configuration - Allow only specified origins
@@ -64,7 +69,6 @@ const limiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.method === 'GET'
 });
 
 // Apply rate limiting to all routes
