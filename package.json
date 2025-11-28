@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "node ./scripts/safe-build.mjs",
-    "build,": "npm run build",
+    "build,": "node ./scripts/safe-build.mjs",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "start:prod": "node server.js",
